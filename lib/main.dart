@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:video_player/video_player.dart';
@@ -55,9 +56,14 @@ class _KaraokeHomeState extends State<KaraokeHome> {
     await controller?.dispose();
     final c = VideoPlayerController.file(File(path));
     controller = c;
-    await c.initialize();
-    await c.play();
-    setState(() => current = path);
+    try {
+      await c.initialize();
+      await c.play();
+      if (mounted) setState(() => current = path);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to play this MP4 file.')));
+    }
   }
 
   @override void dispose() { controller?.dispose(); super.dispose(); }
@@ -78,14 +84,18 @@ class _KaraokeHomeState extends State<KaraokeHome> {
             ? Center(child: AspectRatio(
                 aspectRatio: controller!.value.aspectRatio,
                 child: VideoPlayer(controller!)))
-            : const Center(child: Text('Connect USB OTG and add MP4 karaoke videos')),
+            : const Center(child: Text('Connect USB OTG and select MP4 karaoke videos')),
         ),
-        Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        Padding(padding: const EdgeInsets.all(8), child: Text(name,
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           IconButton(onPressed: () => controller?.seekTo(Duration.zero), icon: const Icon(Icons.replay)),
-          IconButton(onPressed: () => controller?.value.isPlaying == true ? controller?.pause() : controller?.play(),
-            icon: const Icon(Icons.play_arrow, size: 38)),
+          IconButton(onPressed: () {
+            if (controller == null) return;
+            controller!.value.isPlaying ? controller!.pause() : controller!.play();
+            setState(() {});
+          }, icon: Icon(controller?.value.isPlaying == true ? Icons.pause : Icons.play_arrow, size: 38)),
         ]),
         const Divider(),
         Expanded(flex: 2, child: ListView.builder(
@@ -98,7 +108,7 @@ class _KaraokeHomeState extends State<KaraokeHome> {
         )),
       ]),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addMp4, icon: const Icon(Icons.add), label: const Text('ADD MP4')),
+        onPressed: _addMp4, icon: const Icon(Icons.usb), label: const Text('ADD MP4')),
     );
   }
 }
